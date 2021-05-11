@@ -401,6 +401,10 @@ class Discriminator(nn.Module):
         x = self.a2(x)
         return x # real/fake score
 
+    def peak_weights(self):
+        for each in self.parameters():
+            print()
+
 
 # discriminator modules
 # 3 hidden linears with Relu, output sigmoud....use BCE loss for optimizers (will have 2 separate
@@ -473,7 +477,7 @@ class GAN(nn.Module):
             # loss fn backprops all the way back to generator, store loss
             loss_total_g += loss_g.item()
             loss_g.backward()
-            torch.nn.utils.clip_grad_norm_(self.generator.parameters(), 5)
+            torch.nn.utils.clip_grad_norm_(self.generator.parameters(), 3)
             # steps the generators weights ....
             # clip grad?
             optim_g.step()
@@ -496,9 +500,13 @@ class GAN(nn.Module):
             # d = d_g + d_x
             loss_total_d += loss_dx.item()
             loss_dx.backward()
-            torch.nn.utils.clip_grad_norm_(self.discriminator.parameters(), 5)
+            torch.nn.utils.clip_grad_norm_(self.discriminator.parameters(), 3)
             optim_d.step()
             if batch_count % 500 == 0:
+                for i, each in enumerate(self.generator.parameters()):
+                    print('generator weight norms',torch.norm(each)) if i % 2 == 0 else None
+                for i, each in enumerate(self.discriminator.parameters()):
+                    print('discriminator weight norms',torch.norm(each)) if i % 2 == 0 else None
                 print(batch_count, f'batches complete, loss_g: {loss_total_g}, loss_d: {loss_total_d}')
 
         self.loss_totals_g.append(loss_total_g)
@@ -604,7 +612,7 @@ def plot_scores(net):
         dep_label='loss',
         title=f'Vanilla Gan Scores {int(time.time())}')
 
-problem2()
+# problem2()
 # training loop code...
 
 # todo show generated samples from beginning of training, intermediate stage of training and
