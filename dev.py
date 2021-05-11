@@ -509,7 +509,7 @@ class GAN(nn.Module):
             print('generator weight norms', torch.norm(each)) if i % 2 == 0 else None
         for i, each in enumerate(self.discriminator.parameters()):
             print('discriminator weight norms', torch.norm(each)) if i % 2 == 0 else None
-        self.peak(z, name='train')
+        # self.peak(z, name='train')
         self.loss_totals_g.append(loss_total_g)
         self.loss_totals_d.append(loss_total_d)
         self.score_g.append(y_dg.detach().mean().item())
@@ -614,7 +614,8 @@ def plot_scores(net):
         dep_label='loss',
         title=f'Vanilla Gan Scores {int(time.time())}')
 
-problem2()
+print(c)
+# problem2()
 # training loop code...
 
 # todo show generated samples from beginning of training, intermediate stage of training and
