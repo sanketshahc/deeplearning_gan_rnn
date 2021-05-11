@@ -614,8 +614,8 @@ def plot_scores(net):
         dep_label='loss',
         title=f'Vanilla Gan Scores {int(time.time())}')
 
-print(c)
-# problem2()
+# print(c)
+problem2()
 # training loop code...
 
 # todo show generated samples from beginning of training, intermediate stage of training and
