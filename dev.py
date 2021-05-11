@@ -571,6 +571,7 @@ class GAN(nn.Module):
         w = input
         assert len(w.shape) == 4, w.shape
         co, ci, he, wi = w.shape
+        assert he * wi == xout_size
         if padding:
             w = torch.cat((w, torch.ones((co, ci, p, wi), device=device)), dim=-2)
             w = torch.cat((w, torch.ones((co, ci, he + p, p), device=device)), dim=-1)
