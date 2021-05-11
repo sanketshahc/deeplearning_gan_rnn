@@ -420,7 +420,7 @@ class GAN(nn.Module):
         # epochs...just to check in on it....essentially "sample" from the dist we're modeling..
         # I think just do both?
         #self.replay # if you wanted
-        self.seed = torch.randn(batch_size, z_size)
+        self.seed = torch.randn(batch_size, z_size).to(device)
         self.loss_totals_g = []
         self.loss_totals_d = []
         self.score_g = []
