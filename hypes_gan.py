@@ -49,6 +49,9 @@ c_d = 1
 # clip weights of discriminator so l1 norm is not bigger than c...
 
 
+
+
+
 #for 2.1:
 # xout_size = 28 * 28 # Fixed
 # epochs = 50  # iterations
@@ -74,7 +77,7 @@ c_d = 1
 #
 # # optim params discriminator
 # learning_rate_d = .0011
-# w_d = .0001
+# w_d = .00075
 # beta1_d = .5
 # beta2_d = .9
 # c_d = 2
