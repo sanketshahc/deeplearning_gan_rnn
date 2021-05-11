@@ -477,7 +477,7 @@ class GAN(nn.Module):
             # loss fn backprops all the way back to generator, store loss
             loss_total_g += loss_g.item()
             loss_g.backward()
-            torch.nn.utils.clip_grad_norm_(self.generator.parameters(), 3)
+            torch.nn.utils.clip_grad_norm_(self.generator.parameters(), c)
             # steps the generators weights ....
             # clip grad?
             optim_g.step()
@@ -500,7 +500,7 @@ class GAN(nn.Module):
             # d = d_g + d_x
             loss_total_d += loss_dx.item()
             loss_dx.backward()
-            torch.nn.utils.clip_grad_norm_(self.discriminator.parameters(), 3)
+            torch.nn.utils.clip_grad_norm_(self.discriminator.parameters(), c)
             optim_d.step()
             if batch_count % 500 == 0:
                 for i, each in enumerate(self.generator.parameters()):

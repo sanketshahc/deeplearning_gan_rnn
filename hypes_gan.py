@@ -20,6 +20,8 @@ w = 0
 beta1 = .5
 beta2 = .9
 
+c = 20
+
 
 hypes = {
 
