@@ -462,7 +462,6 @@ class GAN(nn.Module):
 
             # Feeding of z into generator. for some reason don't need to seed this...what would
             # happend if we did?
-            self.peak(z, name='train') if batch_count % 1800 == 0 else None
             g = self.generator(z)
             y_g = self.discriminator(g) # fake score
             # generator's output is already normalized, goes into the discriminator forward
@@ -509,7 +508,7 @@ class GAN(nn.Module):
                 for i, each in enumerate(self.discriminator.parameters()):
                     print('discriminator weight norms',torch.norm(each)) if i % 2 == 0 else None
                 print(batch_count, f'batches complete, loss_g: {loss_total_g}, loss_d: {loss_total_d}')
-
+        self.peak(z, name='train')
         self.loss_totals_g.append(loss_total_g)
         self.loss_totals_d.append(loss_total_d)
         self.score_g.append(y_dg.detach().mean().item())
