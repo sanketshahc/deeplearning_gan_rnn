@@ -40,11 +40,11 @@ def save_bin(name, f_object):
     stamp = int(time.time())
     if not os.path.exists('pickled_binaries/'):
         os.makedirs('pickled_binaries/')
-    if type(f_object) == torch.Tensor or type(f_object) == torch.Module:
+    try:
         f_object = f_object.to('cpu')
         name = f'{name}_{stamp}.pt'
         torch.save(f_object, f"pickled_binaries/{name}")
-    else:
+    except:
         name = f'{name}_{stamp}.bin'
         file = open(f"pickled_binaries/{name}", "wb")
         pickle.dump(f_object, file)
@@ -602,24 +602,14 @@ class GAN_MSE(nn.Module):
         super(GAN_MSE, self).__init__()
         # COmponents
         self.generator = Adversary(z_size, hs_g1, hs_g2, hs_g3, xout_size)
-        # self.discriminator = Discriminator(xout_size, hs_d1, hs_d2, hs_d3)
         self.criterion = criterion
         self.to(device)
         self.train()  # NEcessary? maybe not
-        # Cache and Met rics
-        # Do we want to cache every output of the model? or just random seed sample it every so
-        # epochs...just to check in on it....essentially "sample" from the dist we're modeling..
-        # I think just do both?
-        # self.replay # if you wanted
         self.seed = torch.randn(batch_size, z_size).to(device)
         self.loss_totals_g = []
-        # self.loss_totals_d = []
         self.score_g = []
-        # self.score_d = []
         self.optim_g = torch.optim.Adam(self.generator.parameters(), lr=learning_rate_g,
                                         weight_decay=w_g, betas=(beta1_g, beta2_g))
-        # self.optim_d = torch.optim.Adam(self.discriminator.parameters(), lr=learning_rate_d,
-        #                                 weight_decay=w, betas=(beta1, beta2))
 
     def forward(self, input):
         return self.generator(input)
@@ -630,14 +620,11 @@ class GAN_MSE(nn.Module):
         # truth = y, score = y_hat
         return self.criterion(score, truth)  # takes mean reduction
 
-    # def batches_loop(self):
     def batches_loop(self):
         optim_g = self.optim_g
-        # optim_d = self.optim_d
         batch_count = 0
         loss_total_g = 0
         loss_total_d = 0
-        # count_correct = 0
         for x, _ in fmnist_loader:
             batch_count += 1
 
@@ -757,6 +744,9 @@ def plot_scores(net):
         ind_label='epochs',
         dep_label='loss',
         title=f'Vanilla Gan Scores {int(time.time())}')
+
+def test():
+    plot_scores(nn.Module)
 
 # print(c)
 loss_2a = nn.BCELoss()
