@@ -502,12 +502,13 @@ class GAN(nn.Module):
             loss_dt.backward()
             torch.nn.utils.clip_grad_norm_(self.discriminator.parameters(), c)
             optim_d.step()
-            if batch_count % 500 == 0:
-                for i, each in enumerate(self.generator.parameters()):
-                    print('generator weight norms',torch.norm(each)) if i % 2 == 0 else None
-                for i, each in enumerate(self.discriminator.parameters()):
-                    print('discriminator weight norms',torch.norm(each)) if i % 2 == 0 else None
+            if batch_count % 200 == 0:
                 print(batch_count, f'batches complete, loss_g: {loss_total_g}, loss_d: {loss_total_d}')
+
+        for i, each in enumerate(self.generator.parameters()):
+            print('generator weight norms', torch.norm(each)) if i % 2 == 0 else None
+        for i, each in enumerate(self.discriminator.parameters()):
+            print('discriminator weight norms', torch.norm(each)) if i % 2 == 0 else None
         self.peak(z, name='train')
         self.loss_totals_g.append(loss_total_g)
         self.loss_totals_d.append(loss_total_d)
