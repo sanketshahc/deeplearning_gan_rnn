@@ -26,12 +26,12 @@ from hypes_gan import *
 from torch.utils.tensorboard import SummaryWriter
 
 Lambda = transforms.Lambda
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 # Problem 0 done by hand
 
 
 # Problem 1 : Data Prep
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 # stamp = int(time.time())
 
 
@@ -434,6 +434,8 @@ class GAN(nn.Module):
         return self.generator(input)
 
     def loss(self, score, truth):
+        score = score.to(device)
+        truth = truth.to(device)
         # truth = y, score = y_hat
         return nn.BCELoss()(score, truth) # takes mean reduction
 
