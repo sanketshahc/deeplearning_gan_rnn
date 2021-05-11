@@ -23,6 +23,7 @@ from argparse import ArgumentParser, Action
 import re
 import time
 from hypes_gan import *
+
 from torch.utils.tensorboard import SummaryWriter
 
 Lambda = transforms.Lambda
@@ -412,11 +413,12 @@ class Discriminator(nn.Module):
 
 # overall network system module....will have training funcitons embedded, like sanketnet.
 class GAN(nn.Module):
-    def __init__(self):
+    def __init__(self, criterion):
         super(GAN, self).__init__()
         #COmponents
         self.generator = Adversary(z_size, hs_g1,hs_g2, hs_g3, xout_size)
         self.discriminator = Discriminator(xout_size, hs_d1,hs_d2, hs_d3)
+        self.criterion = criterion
         self.to(device)
         self.train() # NEcessary? maybe not
         # Cache and Met rics
@@ -441,7 +443,7 @@ class GAN(nn.Module):
         score = score.to(device)
         truth = truth.to(device)
         # truth = y, score = y_hat
-        return nn.BCELoss()(score, truth) # takes mean reduction
+        return self.criterion(score, truth) # takes mean reduction
 
     # def batches_loop(self):
     def batches_loop(self):
@@ -615,11 +617,13 @@ def plot_scores(net):
         title=f'Vanilla Gan Scores {int(time.time())}')
 
 # print(c)
-problem2()
+loss_2a = nn.BCELoss()
+# loss_2b =
+if __name__ == "__main__":
+    problem2(loss_2a)
 # training loop code...
 
 # todo show generated samples from beginning of training, intermediate stage of training and
 #  after 'convergence'
 
 # todo plot loss curces.
-
