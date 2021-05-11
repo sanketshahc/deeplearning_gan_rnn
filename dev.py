@@ -458,7 +458,7 @@ class GAN(nn.Module):
 
             # Feeding of z into generator. for some reason don't need to seed this...what would
             # happend if we did?
-            self.peak(z, name='train') if batch_count % 1 == 0 else None
+            self.peak(z, name='train') if batch_count % 1800 == 0 else None
             g = self.generator(z)
             y_g = self.discriminator(g) # fake score
             # generator's output is already normalized, goes into the discriminator forward
