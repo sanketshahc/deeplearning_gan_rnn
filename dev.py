@@ -499,7 +499,7 @@ class GAN(nn.Module):
             loss_dx.backward()
             # torch.nn.utils.clip_grad_norm_(self.discriminator.parameters(), 3)
             optim_d.step()
-            if batch_count % 100 == 0:
+            if batch_count % 500 == 0:
                 print(batch_count, f'batches complete, loss_g: {loss_total_g}, loss_d: {loss_total_d}')
 
         self.loss_totals_g.append(loss_total_g)
@@ -549,7 +549,7 @@ class GAN(nn.Module):
         tiles = tiles.cpu().detach().numpy()
 
         plt.figure(figsize=(80, 40))
-        plt.imshow(tiles, interpolation='bilinear')
+        # plt.imshow(tiles, interpolation='bilinear')
         plt.savefig(f'./plots/peak_{name}_{int(time.time())}.png') # shows up as green?
 
     def tile_and_print(self,input, tiles_height, tiles_width, padding=1): # taken from asgn2
