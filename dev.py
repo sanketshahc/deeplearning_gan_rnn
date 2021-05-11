@@ -550,7 +550,8 @@ class GAN(nn.Module):
         tiles = tiles.squeeze()
         plt.figure(figsize=(80, 40))
         plt.imshow(tiles, interpolation='bilinear', cmap='gray')
-        plt.savefig(f'./plots/peak_{name}_{int(time.time())}.png') # shows up as green?
+        plt.savefig(f'./plots/peak_{name}_{int(time.time())}.png')
+        plt.close() # shows up as green?
 
     def tile_and_print(self,input, tiles_height, tiles_width, padding=1): # taken from asgn2
         """
