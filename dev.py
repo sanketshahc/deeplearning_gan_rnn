@@ -433,9 +433,9 @@ class GAN(nn.Module):
         self.score_g = []
         self.score_d = []
         self.optim_g = torch.optim.Adam(self.generator.parameters(), lr = learning_rate_g,
-                                   weight_decay=w, betas= (beta1, beta2))
+                                   weight_decay=w_g, betas= (beta1_g, beta2_g))
         self.optim_d = torch.optim.Adam(self.discriminator.parameters(), lr=learning_rate_d,
-                                   weight_decay=w, betas= (beta1, beta2))
+                                   weight_decay=w_d, betas= (beta1_d, beta2_d))
 
     def forward(self, input):
         return self.generator(input)
@@ -455,9 +455,11 @@ class GAN(nn.Module):
         loss_total_d = 0
         # count_correct = 0
         for x, _ in fmnist_loader:
+            batch_count += 1
+
+            # data_rinse
             x = x.squeeze() # move data treatment to data funciton
             x = x.reshape(batch_size,xout_size)
-            batch_count += 1
             x = x.to(device)
             # The sampling of ze (shape z-size by something)
             z = torch.randn(batch_size, z_size) # rand latent
@@ -465,46 +467,54 @@ class GAN(nn.Module):
 
             # Feeding of z into generator. for some reason don't need to seed this...what would
             # happend if we did?
+            # generator's output is already normalized, goes into the discriminator forward
+            # discriminator's output goes into loss fn, along with a vector of 1's
+            # clear the gradient
+            # loss fn backprops all the way back to generator, store loss
+
+            #generator forward
             g = self.generator(z)
             y_g = self.discriminator(g) # fake score
-            # generator's output is already normalized, goes into the discriminator forward
             y_gt = torch.ones(batch_size, 1) # target
-            # y_gt= y_gt.float()
             y_gt = y_gt.to(device)
             y_g = y_g.to(device)
-            # discriminator's output goes into loss fn, along with a vector of 1's
+
+            # generator loss, backward, step
             loss_g = self.loss(y_g, y_gt)
-            # clear the gradient
             optim_g.zero_grad()
-            # loss fn backprops all the way back to generator, store loss
             loss_total_g += loss_g.item()
             loss_g.backward()
-            torch.nn.utils.clip_grad_norm_(self.generator.parameters(), c)
-            # steps the generators weights ....
-            # clip grad?
+            torch.nn.utils.clip_grad_norm_(self.generator.parameters(), c_g)
             optim_g.step()
+            # steps the generators weights ....
 
+            # discriminator forward w/ fake
             d_g = self.discriminator(g.detach())
             y_dg = torch.zeros(batch_size, 1)
             y_dg = y_dg.to(device)
             loss_dg = self.loss(d_g, y_dg)
             # loss_total_d += loss_dg.item()
-            optim_d.zero_grad()
             # loss_dg.backward()
 
             # discriminator takes the same output and feeds forward on it's network (again) (for
             # gradient purposes) can potentially detach here....try detach first and then
             # without...in interest of time...
+
+            # discriminator forward w/ real
             d_x = self.discriminator(x)
             y_dx = torch.ones(batch_size,1)
             y_dx = y_dx.to(device)
-            loss_dx = self.loss(d_x, y_dx )
             # d = d_g + d_x
+
+            # discriminator loss, backward, step
+            loss_dx = self.loss(d_x, y_dx )
             loss_dt = loss_dx + loss_dg
             loss_total_d += loss_dt.item()
+            optim_d.zero_grad()
             loss_dt.backward()
-            torch.nn.utils.clip_grad_norm_(self.discriminator.parameters(), c)
+            torch.nn.utils.clip_grad_norm_(self.discriminator.parameters(), c_d)
             optim_d.step()
+
             if batch_count % 200 == 0:
                 print(batch_count, f'batches complete, loss_g: {loss_total_g}, loss_d: {loss_total_d}')
 
@@ -536,6 +546,123 @@ class GAN(nn.Module):
         # every epoch, take a "peak". In a consistently seeded sample of z, do a forward call on
         # the generator, and visualize the results. this is as simple as just saving down the
         # file, overwriting everytim....can just pull in the tile and view fn from asgn 2.
+
+class GAN_MSE(nn.Module):
+    def __init__(self, criterion):
+        super(GAN_MSE, self).__init__()
+        # COmponents
+        self.generator = Adversary(z_size, hs_g1, hs_g2, hs_g3, xout_size)
+        # self.discriminator = Discriminator(xout_size, hs_d1, hs_d2, hs_d3)
+        self.criterion = criterion
+        self.to(device)
+        self.train()  # NEcessary? maybe not
+        # Cache and Met rics
+        # Do we want to cache every output of the model? or just random seed sample it every so
+        # epochs...just to check in on it....essentially "sample" from the dist we're modeling..
+        # I think just do both?
+        # self.replay # if you wanted
+        self.seed = torch.randn(batch_size, z_size).to(device)
+        self.loss_totals_g = []
+        # self.loss_totals_d = []
+        self.score_g = []
+        # self.score_d = []
+        self.optim_g = torch.optim.Adam(self.generator.parameters(), lr=learning_rate_g,
+                                        weight_decay=w, betas=(beta1, beta2))
+        # self.optim_d = torch.optim.Adam(self.discriminator.parameters(), lr=learning_rate_d,
+        #                                 weight_decay=w, betas=(beta1, beta2))
+
+    def forward(self, input):
+        return self.generator(input)
+
+    def loss(self, score, truth):
+        score = score.to(device)
+        truth = truth.to(device)
+        # truth = y, score = y_hat
+        return self.criterion(score, truth)  # takes mean reduction
+
+    # def batches_loop(self):
+    def batches_loop(self):
+        optim_g = self.optim_g
+        # optim_d = self.optim_d
+        batch_count = 0
+        loss_total_g = 0
+        loss_total_d = 0
+        # count_correct = 0
+        for x, _ in fmnist_loader:
+            batch_count += 1
+
+            # data_rinse
+            x = x.squeeze()  # move data treatment to data funciton
+            x = x.reshape(batch_size, xout_size)
+            x = x.to(device)
+            # The sampling of ze (shape z-size by something)
+            z = torch.randn(batch_size, z_size)  # rand latent
+            z = z.to(device)
+
+            # Feeding of z into generator. for some reason don't need to seed this...what would
+            # happend if we did?
+            # generator's output is already normalized, goes into the discriminator forward
+            # discriminator's output goes into loss fn, along with a vector of 1's
+            # clear the gradient
+            # loss fn backprops all the way back to generator, store loss
+
+            # generator forward
+            y_g = self.generator(z)
+            # y_g = self.discriminator(g)  # fake score
+            # y_gt = torch.ones(batch_size, 1)  # target
+            # y_gt = y_gt.to(device)
+            y_g = y_g.to(device)
+
+            # generator loss, backward, step
+            loss_g = self.loss(y_g, x)
+            optim_g.zero_grad()
+            loss_total_g += loss_g.item()
+            loss_g.backward()
+            torch.nn.utils.clip_grad_norm_(self.generator.parameters(), c)
+            optim_g.step()
+            # steps the generators weights ....
+            #
+            # # discriminator forward w/ fake
+            # d_g = self.discriminator(g.detach())
+            # y_dg = torch.zeros(batch_size, 1)
+            # y_dg = y_dg.to(device)
+            # loss_dg = self.loss(d_g, y_dg)
+            # # loss_total_d += loss_dg.item()
+            # # loss_dg.backward()
+            #
+            # # discriminator takes the same output and feeds forward on it's network (again) (for
+            # # gradient purposes) can potentially detach here....try detach first and then
+            # # without...in interest of time...
+            #
+            # # discriminator forward w/ real
+            # d_x = self.discriminator(x)
+            # y_dx = torch.ones(batch_size, 1)
+            # y_dx = y_dx.to(device)
+            # # d = d_g + d_x
+            #
+            # # discriminator loss, backward, step
+            # loss_dx = self.loss(d_x, y_dx)
+            # loss_dt = loss_dx + loss_dg
+            # loss_total_d += loss_dt.item()
+            # optim_d.zero_grad()
+            # loss_dt.backward()
+            # torch.nn.utils.clip_grad_norm_(self.discriminator.parameters(), c)
+            # optim_d.step()
+
+            if batch_count % 200 == 0:
+                print(batch_count,
+                      f'batches complete, loss_g: {loss_total_g}, loss_d: {loss_total_d}')
+
+        for i, each in enumerate(self.generator.parameters()):
+            print('generator weight norms', torch.norm(each)) if i % 2 == 0 else None
+        # for i, each in enumerate(self.discriminator.parameters()):
+        #     print('discriminator weight norms', torch.norm(each)) if i % 2 == 0 else None
+        # self.peak(z, name='train')
+        self.loss_totals_g.append(loss_total_g)
+        # self.loss_totals_d.append(loss_total_d)
+        # self.score_g.append(y_dg.detach().mean().item())
+        # self.score_d.append(y_dx.detach().mean().item())
+        return
 
     def train_gan(self):
         count_epoch = 0
@@ -592,6 +719,14 @@ def problem2(loss):
     plot_scores(gan)
     return gan
 
+
+def problem2b(loss):
+    gan = GAN_MSE(loss)
+    gan.train_gan()
+    plot_loss(gan)
+    plot_scores(gan)
+    return gan
+
 def plot_loss(net):
     x = range(epochs)
     y2 = {'data':net.loss_totals_d, 'label':'discriminator'}
@@ -619,11 +754,14 @@ def plot_scores(net):
 
 # print(c)
 loss_2a = nn.BCELoss()
-# loss_2b =
-if __name__ == "__main__":
-    # pass
-    problem2(loss_2a)
-# training loop code...
+loss_2b = nn.MSELoss()
+
+# # loss_2b =
+# if __name__ == "__main__":
+#     # pass
+#     # problem2(loss_2a)
+#     problem2b(loss_2b)
+# # training loop code...
 
 # todo show generated samples from beginning of training, intermediate stage of training and
 #  after 'convergence'
