@@ -364,7 +364,7 @@ class Adversary(nn.Module):
         self.lin2 = nn.Linear(hs1,hs2)
         self.lin3 = nn.Linear(hs2, hs3)
         self.output = nn.Linear(hs3, xout_size)
-        self.a1 = nn.LeakyReLU() # CONSIDER LEAKY RELU
+        self.a1 = nn.LeakyReLU(.2) # CONSIDER LEAKY RELU
         self.a2 = nn.Tanh()
         pass
     
@@ -387,7 +387,7 @@ class Discriminator(nn.Module):
         self.lin2 = nn.Linear(hs1, hs2)
         self.lin3 = nn.Linear(hs2, hs3)
         self.output = nn.Linear(hs3, 1)
-        self.a1 = nn.LeakyReLU()  # CONSIDER LEAKY RELU
+        self.a1 = nn.LeakyReLU(.2)  # CONSIDER LEAKY RELU
         self.a2 = nn.Sigmoid()
 
     def forward(self,x):
