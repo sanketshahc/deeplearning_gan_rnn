@@ -585,8 +585,8 @@ class GAN(nn.Module):
         w = w.reshape(ci, he * tiles_height, tiles_width * wi)
         return w
 
-def problem2():
-    gan = GAN()
+def problem2(loss):
+    gan = GAN(loss)
     gan.train_gan()
     plot_loss(gan)
     plot_scores(gan)
@@ -621,7 +621,8 @@ def plot_scores(net):
 loss_2a = nn.BCELoss()
 # loss_2b =
 if __name__ == "__main__":
-    problem2(loss_2a)
+    pass
+    # problem2(loss_2a)
 # training loop code...
 
 # todo show generated samples from beginning of training, intermediate stage of training and
