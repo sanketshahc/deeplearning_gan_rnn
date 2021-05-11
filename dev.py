@@ -22,6 +22,7 @@ from torch.utils.data import DataLoader
 from argparse import ArgumentParser, Action
 import re
 import time
+from hypes_gan import *
 from torch.utils.tensorboard import SummaryWriter
 
 Lambda = transforms.Lambda
@@ -31,10 +32,11 @@ Lambda = transforms.Lambda
 
 # Problem 1 : Data Prep
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-stamp = int(time.time())
+# stamp = int(time.time())
 
 
 def save_bin(name, f_object):
+    stamp = int(time.time())
     if not os.path.exists('pickled_binaries/'):
         os.makedirs('pickled_binaries/')
     if type(f_object) == torch.Tensor:
@@ -97,12 +99,12 @@ paths = {
     4: 'text/train_neg_merged.txt',
     5: "text/train_pos_merged.txt"
 }
-batch_size = 64
-hidden_size = 64
-embed_size = 32
-learning_rate = .01
-epochs = 30  # iterations
-w = .003
+# batch_size = 64
+# hidden_size = 64
+# embed_size = 32
+# learning_rate = .01
+# epochs = 30  # iterations
+# w = .003
 
 
 # Make Network class module
@@ -310,31 +312,33 @@ def data_prep():
 # Problem 2
 # part 1, vanilla gan
 # Hypers & Vars
-batch_size = 32
-hidden_size_g = 400
-hidden_size_d = 1000
-xout_size = 28 * 28
-z_size = 200
-learning_rate = .01
-epochs = 30  # iterations
-w = .003
-# beta1
-# beta2
+# batch_size = 32
+# xout_size = 28 * 28
+#
+# hidden_size_g = 800
+# hidden_size_d = 1600
+# z_size = 200
+# learning_rate_g = .001
+# learning_rate_d = .001
+# epochs = 50  # iterations
+# w = 0
+# beta1 = .5
+# beta2 = .9
 # Dataset/load (standard Fashion mnist)
 # normalize data when treating....
-hypers = {
-    'max_epochs': 10,
-    'batch_size': 32,
-    'g_lr': 1e-4,
-    'd_lr': 1e-4,
-    'b1': 0.5,
-    'b2': 0.999,
-
-    'z_dim': 100,
-    'x_dim': 2,
-    'latent_dim_G': 100,
-    'latent_dim_D': 100,
-}
+# hypers = {
+#     'max_epochs': 10,
+#     'batch_size': 32,
+#     'g_lr': 1e-4,
+#     'd_lr': 1e-4,
+#     'b1': 0.5,
+#     'b2': 0.999,
+#
+#     'z_dim': 100,
+#     'x_dim': 2,
+#     'latent_dim_G': 100,
+#     'latent_dim_D': 100,
+# }
 def transform(img):
     img = transforms.ToTensor()(img)  # 0 to 1 tensor
     img = transforms.Normalize(mean=0.1307, std=0.3081)(img)
@@ -354,13 +358,13 @@ fmnist_loader = torch.utils.data.DataLoader(
 # 3 hidden linear layers with ReLU activation and Tanh output activation
 
 class Adversary(nn.Module):
-    def __init__(self, z_size, hidden_size_g, xout_size):
+    def __init__(self, z_size, hs1, hs2, hs3, xout_size):
         super(Adversary,self).__init__()
-        self.lin1 = nn.Linear(z_size, hidden_size_g)
-        self.lin2 = nn.Linear(hidden_size_g,hidden_size_g)
-        self.lin3 = nn.Linear(hidden_size_g, hidden_size_g)
-        self.output = nn.Linear(hidden_size_g, xout_size)
-        self.a1 = nn.ReLU() # CONSIDER LEAKY RELU
+        self.lin1 = nn.Linear(z_size, hs1)
+        self.lin2 = nn.Linear(hs1,hs2)
+        self.lin3 = nn.Linear(hs2, hs3)
+        self.output = nn.Linear(hs3, xout_size)
+        self.a1 = nn.LeakyReLU() # CONSIDER LEAKY RELU
         self.a2 = nn.Tanh()
         pass
     
@@ -375,15 +379,15 @@ class Adversary(nn.Module):
         z = self.a2(z)
         return z # generated output
         
-
+nn.LeakyReLU()
 class Discriminator(nn.Module):
-    def __init__(self, input_size, hidden_size_d):
+    def __init__(self, input_size, hs1, hs2, hs3):
         super(Discriminator, self).__init__()
-        self.lin1 = nn.Linear(input_size, hidden_size_d)
-        self.lin2 = nn.Linear(hidden_size_d, hidden_size_d)
-        self.lin3 = nn.Linear(hidden_size_d, hidden_size_d)
-        self.output = nn.Linear(hidden_size_d, 1)
-        self.a1 = nn.ReLU()  # CONSIDER LEAKY RELU
+        self.lin1 = nn.Linear(input_size, hs1)
+        self.lin2 = nn.Linear(hs1, hs2)
+        self.lin3 = nn.Linear(hs2, hs3)
+        self.output = nn.Linear(hs3, 1)
+        self.a1 = nn.LeakyReLU()  # CONSIDER LEAKY RELU
         self.a2 = nn.Sigmoid()
 
     def forward(self,x):
@@ -407,8 +411,8 @@ class GAN(nn.Module):
     def __init__(self):
         super(GAN, self).__init__()
         #COmponents
-        self.generator = Adversary(z_size, hidden_size_g, xout_size)
-        self.discriminator = Discriminator(xout_size, hidden_size_d)
+        self.generator = Adversary(z_size, hs_g1,hs_g2, hs_g3, xout_size)
+        self.discriminator = Discriminator(xout_size, hs_d1,hs_d2, hs_d3)
         self.to(device)
         self.train() # NEcessary? maybe not
         # Cache and Met rics
@@ -421,24 +425,28 @@ class GAN(nn.Module):
         self.loss_totals_d = []
         self.score_g = []
         self.score_d = []
+        self.optim_g = torch.optim.Adam(self.generator.parameters(), lr = learning_rate_g,
+                                   weight_decay=w, betas= (beta1, beta2))
+        self.optim_d = torch.optim.Adam(self.discriminator.parameters(), lr=learning_rate_d,
+                                   weight_decay=w, betas= (beta1, beta2))
 
     def forward(self, input):
         return self.generator(input)
 
     def loss(self, score, truth):
         # truth = y, score = y_hat
-        return nn.BCELoss()(score, truth)
+        return nn.BCELoss()(score, truth) # takes mean reduction
 
     # def batches_loop(self):
     def batches_loop(self):
-        optim_g = torch.optim.Adam(self.generator.parameters(), lr = learning_rate, weight_decay=w)
-        optim_d = torch.optim.Adam(self.discriminator.parameters(), lr=learning_rate, weight_decay=w)
+        optim_g = self.optim_g
+        optim_d = self.optim_d
         batch_count = 0
         loss_total_g = 0
         loss_total_d = 0
         # count_correct = 0
         for x, _ in fmnist_loader:
-            x = x.squeeze()
+            x = x.squeeze() # move data treatment to data funciton
             x = x.reshape(batch_size,xout_size)
             batch_count += 1
             x = x.to(device)
@@ -448,6 +456,7 @@ class GAN(nn.Module):
 
             # Feeding of z into generator. for some reason don't need to seed this...what would
             # happend if we did?
+            self.peak(z, name='train') if batch_count % 1800 == 0 else None
             g = self.generator(z)
             y_g = self.discriminator(g) # fake score
             # generator's output is already normalized, goes into the discriminator forward
@@ -459,15 +468,16 @@ class GAN(nn.Module):
             # clear the gradient
             optim_g.zero_grad()
             # loss fn backprops all the way back to generator, store loss
-            self.loss_total_g += loss_g.item()
+            loss_total_g += loss_g.item()
             loss_g.backward()
+            # torch.nn.utils.clip_grad_norm_(self.generator.parameters(), 3)
             # steps the generators weights ....
             # clip grad?
             # torch.nn.utils.clip_grad_norm_(self.generator.parameters(), 3)
             optim_g.step()
 
             d_g = self.discriminator(g.detach())
-            y_dg = torch.ones(batch_size, 1)
+            y_dg = torch.zeros(batch_size, 1)
             loss_dg = self.loss(d_g, y_dg)
             loss_total_d += loss_dg.item()
             optim_d.zero_grad()
@@ -477,18 +487,20 @@ class GAN(nn.Module):
             # gradient purposes) can potentially detach here....try detach first and then
             # without...in interest of time...
             d_x = self.discriminator(x)
-            y_dx = torch.zeros(batch_size,1)
+            y_dx = torch.ones(batch_size,1)
             loss_dx = self.loss(d_x, y_dx )
             # d = d_g + d_x
-            torch.nn.utils.clip_grad_norm_(self.discriminator.parameters(), 3)
             loss_total_d += loss_dx.item()
             loss_dx.backward()
+            # torch.nn.utils.clip_grad_norm_(self.discriminator.parameters(), 3)
             optim_d.step()
-            if batch_count % 50 == 0:
-                print(batch_count, ' batches complete')
+            if batch_count % 100 == 0:
+                print(batch_count, f'batches complete, loss_g: {loss_total_g}, loss_d: {loss_total_d}')
 
         self.loss_totals_g.append(loss_total_g)
         self.loss_totals_d.append(loss_total_d)
+        self.score_g.append(y_dg.detach().mean().item())
+        self.score_d.append(y_dx.detach().mean().item())
         return
         # takes a sample from the data-space (input) via data loader, and feeds it forward through
         # the discriminator
@@ -514,19 +526,25 @@ class GAN(nn.Module):
         for epoch in range(epochs):
             count_epoch += 1
             print('EPOCH:', count_epoch)
-            batches_loop()
+            self.batches_loop()
+            self.peak(self.seed, name='ss')
 
-        self.peak()
-        save_bin(f'rnn', self)
+        save_bin(f'gan', self)
 
-    def peak(self):
-        g = self.generator(self.seed)
+    def peak(self, z, name = 'x'):
+        inv_normalize = transforms.Normalize(
+            mean=[-0.1307 / 0.3081],
+            std=[1 / 0.3081]
+        )
+        g = self.generator(z)
         g = g.reshape(batch_size, 1, 28, 28)
+        g = inv_normalize(g)
         tiles = self.tile_and_print(g, 4, 8)
-        plt.figure(figsize=(20, 200))
+        tiles = tiles.permute(1, 2, 0)
+        tiles = tiles.detach().numpy()
+        plt.figure(figsize=(80, 40))
         plt.imshow(tiles, interpolation='bilinear')
-        # plt.show()
-        plt.savefig(f'./plots/peak_{stamp}.png') # shows up as green?
+        plt.savefig(f'./plots/peak_{name}_{int(time.time())}.png') # shows up as green?
 
     def tile_and_print(self,input, tiles_height, tiles_width, padding=1): # taken from asgn2
         """
@@ -548,45 +566,37 @@ class GAN(nn.Module):
         w = w.reshape(ci, he * tiles_height, tiles_width * wi)
         return w
 
+def problem2():
+    gan = GAN()
+    gan.train_gan()
+    plot_loss(gan)
+    plot_scores(gan)
+    return gan
 
-    #
-    # def train_gan(self):
-    #     # network = self
-    #     count_epoch = 0
-    #     # network.to(device)
-    #     # w = 0
-    #     # if type(network) == MLP_net:
-    #     # optimizer = torch.optim.Adam(network.parameters(), lr=learning_rate, weight_decay=w)  # is
-    #     # this just a
-    #     # criterion = nn.BCELoss()
-    #     # network.train() always in train mode?
-    #     # accuracies = []
-    #     # accuracies_test = []
-    #     # loss_testing = []
-    #     # loss_training = []
-    #     for epoch in range(epochs):
-    #         count_epoch += 1
-    #         print('EPOCH:', count_epoch)
-    #         # network.train()
-    #         # call batches_loop
-    #
-    #         training_batches = batches_loop(train_loader, network, criterion, optimizer)
-    #         # loss_training.append(training_batches[0])
-    #         # network.eval()
-    #         # testing_batches = batches_loop(test_loader, network, criterion, optimizer, True)
-    #         # loss_testing.append(testing_batches[0])
-    #         # accuracy = training_batches[1]
-    #         # accuracies.append(accuracy)
-    #         # accuracy_test = testing_batches[1]
-    #         # accuracies_test.append(accuracy_test)
-    #         # print('training_loss', training_batches[0], 'accuracy', accuracy)
-    #         # print('testing_loss', testing_batches[0], 'accuracy_test', accuracy_test)
-    #         # metrics = (loss_training, loss_testing, accuracies, accuracies_test)
-    #
-    #     save_bin(f'rnn', self)
+def plot_loss(net):
+    x = range(epochs)
+    y2 = {'data':net.loss_totals_d, 'label':'discriminator'}
+    y1 = {'data':net.loss_totals_g,'label':'generator'}
+    SANKETNET.Plot.curves(
+        x,
+        y1,
+        y2,
+        ind_label='epochs',
+        dep_label='loss',
+        title=f'Vanilla Gan Loss {int(time.time())}')
 
 
-
+def plot_scores(net):
+    x = range(epochs)
+    y2 = {'data': net.score_d, 'label': 'discriminator'}
+    y1 = {'data': net.score_g, 'label': 'generator'}
+    SANKETNET.Plot.curves(
+        x,
+        y1,
+        y2,
+        ind_label='epochs',
+        dep_label='loss',
+        title=f'Vanilla Gan Scores {int(time.time())}')
 
 # training loop code...
 
@@ -594,3 +604,4 @@ class GAN(nn.Module):
 #  after 'convergence'
 
 # todo plot loss curces.
+
