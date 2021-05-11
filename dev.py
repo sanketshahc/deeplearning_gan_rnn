@@ -40,7 +40,8 @@ def save_bin(name, f_object):
     stamp = int(time.time())
     if not os.path.exists('pickled_binaries/'):
         os.makedirs('pickled_binaries/')
-    if type(f_object) == torch.Tensor:
+    if type(f_object) == torch.Tensor or type(f_object) == torch.Module:
+        f_object = f_object.to('cpu')
         name = f'{name}_{stamp}.pt'
         torch.save(f_object, f"pickled_binaries/{name}")
     else:
