@@ -621,8 +621,8 @@ def plot_scores(net):
 loss_2a = nn.BCELoss()
 # loss_2b =
 if __name__ == "__main__":
-    pass
-    # problem2(loss_2a)
+    # pass
+    problem2(loss_2a)
 # training loop code...
 
 # todo show generated samples from beginning of training, intermediate stage of training and
