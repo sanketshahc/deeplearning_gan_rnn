@@ -552,7 +552,7 @@ class GAN(nn.Module):
         g = self.generator(z)
         g = g.reshape(batch_size, 1, 28, 28)
         g = inv_normalize(g)
-        tiles = self.tile_and_print(g, 4, 8)
+        tiles = self.tile_and_print(g, 8, 8)
         tiles = tiles.permute(1, 2, 0)
         tiles = tiles.cpu().detach().numpy()
         tiles = tiles.squeeze()
