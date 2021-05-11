@@ -486,9 +486,9 @@ class GAN(nn.Module):
             y_dg = torch.zeros(batch_size, 1)
             y_dg = y_dg.to(device)
             loss_dg = self.loss(d_g, y_dg)
-            loss_total_d += loss_dg.item()
+            # loss_total_d += loss_dg.item()
             optim_d.zero_grad()
-            loss_dg.backward()
+            # loss_dg.backward()
 
             # discriminator takes the same output and feeds forward on it's network (again) (for
             # gradient purposes) can potentially detach here....try detach first and then
@@ -498,8 +498,9 @@ class GAN(nn.Module):
             y_dx = y_dx.to(device)
             loss_dx = self.loss(d_x, y_dx )
             # d = d_g + d_x
-            loss_total_d += loss_dx.item()
-            loss_dx.backward()
+            loss_dt = loss_dx + loss_dg
+            loss_total_d += loss_dt.item()
+            loss_dt.backward()
             torch.nn.utils.clip_grad_norm_(self.discriminator.parameters(), c)
             optim_d.step()
             if batch_count % 500 == 0:

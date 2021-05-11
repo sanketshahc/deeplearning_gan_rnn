@@ -1,6 +1,6 @@
 xout_size = 28 * 28 # Fixed
 epochs = 50  # iterations
-batch_size = 32 #
+batch_size = 64 #
 
 # z, hidden sizes for generator
 z_size = 256
@@ -9,9 +9,9 @@ hs_g2 = 1024
 hs_g3 = 2048
 
 # hidden sizes for discriminator
-hs_d1= 1024
-hs_d2= 512
-hs_d3= 256
+hs_d1= 2048
+hs_d2= 1024
+hs_d3= 512
 
 # optim params
 learning_rate_g = .00001
