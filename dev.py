@@ -547,7 +547,7 @@ class GAN(nn.Module):
         tiles = self.tile_and_print(g, 4, 8)
         tiles = tiles.permute(1, 2, 0)
         tiles = tiles.cpu().detach().numpy()
-        tiles.squeeze()
+        tiles = tiles.squeeze()
         plt.figure(figsize=(80, 40))
         plt.imshow(tiles, interpolation='bilinear')
         plt.savefig(f'./plots/peak_{name}_{int(time.time())}.png') # shows up as green?
