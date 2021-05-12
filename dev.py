@@ -511,13 +511,39 @@ class GAN(nn.Module):
         # count_correct = 0
         for x, _ in fmnist_loader:
             batch_count += 1
-
             # data_rinse
             x = x.squeeze() # move data treatment to data funciton
             x = x.reshape(batch_size,xout_size)
             x = x.to(device)
             # The sampling of ze (shape z-size by something)
+            z = torch.randn(batch_size, z_size)  # rand latent
+            z = z.to(device)
+            # discriminator forward w/ fake
+            d_g = self.discriminator(self.generator(z).detach())
+            y_dg = torch.zeros(batch_size, 1)
+            y_dg = y_dg.to(device)
+            loss_dg = self.loss(d_g, y_dg)
+            # loss_total_d += loss_dg.item()
+            # loss_dg.backward()
 
+            # discriminator takes the same output and feeds forward on it's network (again) (for
+            # gradient purposes) can potentially detach here....try detach first and then
+            # without...in interest of time...
+
+            # discriminator forward w/ real
+            d_x = self.discriminator(x)
+            y_dx = torch.ones(batch_size,1)
+            y_dx = y_dx.to(device)
+            # d = d_g + d_x
+
+            # discriminator loss, backward, step
+            loss_dx = self.loss(d_x, y_dx )
+            loss_dt = loss_dx + loss_dg
+            loss_total_d += loss_dt.item()
+            optim_d.zero_grad()
+            loss_dt.backward()
+            torch.nn.utils.clip_grad_norm_(self.discriminator.parameters(), c_d)
+            optim_d.step()
 
             # Feeding of z into generator. for some reason don't need to seed this...what would
             # happend if we did?
@@ -545,37 +571,6 @@ class GAN(nn.Module):
                     torch.nn.utils.clip_grad_norm_(self.generator.parameters(), c_g)
                     optim_g.step()
                     # steps the generators weights ....
-            else:
-                z = torch.randn(batch_size, z_size)  # rand latent
-                z = z.to(device)
-                g = self.generator(z)
-
-            # discriminator forward w/ fake
-            d_g = self.discriminator(g.detach())
-            y_dg = torch.zeros(batch_size, 1)
-            y_dg = y_dg.to(device)
-            loss_dg = self.loss(d_g, y_dg)
-            # loss_total_d += loss_dg.item()
-            # loss_dg.backward()
-
-            # discriminator takes the same output and feeds forward on it's network (again) (for
-            # gradient purposes) can potentially detach here....try detach first and then
-            # without...in interest of time...
-
-            # discriminator forward w/ real
-            d_x = self.discriminator(x)
-            y_dx = torch.ones(batch_size,1)
-            y_dx = y_dx.to(device)
-            # d = d_g + d_x
-
-            # discriminator loss, backward, step
-            loss_dx = self.loss(d_x, y_dx )
-            loss_dt = loss_dx + loss_dg
-            loss_total_d += loss_dt.item()
-            optim_d.zero_grad()
-            loss_dt.backward()
-            torch.nn.utils.clip_grad_norm_(self.discriminator.parameters(), c_d)
-            optim_d.step()
 
             if batch_count % 200 == 0:
                 print(batch_count, f'batches complete, loss_g: {loss_total_g}, loss_d: {loss_total_d}')
@@ -1267,6 +1262,7 @@ class GAN_unrolled(nn.Module):
             if batch_count % rd == 0:
                 assert rolls >0, 'unrolled gan needs rolls'
                 for k in range(rolls):
+                    batch_count += 1
                     _x, _ = next(fmnist_iter)
                     _x = _x.squeeze()  # move data treatment to data funciton
                     _x = _x.reshape(batch_size, xout_size)
