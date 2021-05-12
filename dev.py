@@ -784,7 +784,7 @@ class GAN_Wass(nn.Module):
                                    weight_decay=w_g, betas= (beta1_g, beta2_g))
         self.optim_d = torch.optim.Adam(self.discriminator.parameters(), lr=learning_rate_d,
                                    weight_decay=w_d, betas= (beta1_d, beta2_d))
-
+# todo change optimzier?
     def forward(self, input):
         return self.generator(input)
 
@@ -845,8 +845,10 @@ class GAN_Wass(nn.Module):
             optim_d.step()
             for p, each in enumerate(self.discriminator.parameters()):
                 if p % 2 == 0:
-                    # with torch.no_grad():
+                    # print(1,each)
                     each.data.clamp_( -c_w, c_w)
+                    # print(2,each)
+# todo check cliamp
 
             if batch_count % rd == 0:
                 for i in range(rg):
@@ -1382,6 +1384,167 @@ class GAN_unrolled(nn.Module):
         w = w.reshape(ci, he * tiles_height, tiles_width * wi)
         return w
 
+
+# overall network system module....will have training funcitons embedded, like sanketnet.
+class GAN_conditional(nn.Module):
+    def __init__(self, criterion):
+        super(GAN_conditional, self).__init__()
+        #COmponents
+        self.generator = Adversary(z_size, hs_g1, hs_g2, hs_g3, xout_size + 10)
+        self.discriminator = Discriminator(xout_size + 10, hs_d1,hs_d2, hs_d3)
+        self.criterion = criterion
+        self.to(device)
+        self.train() # NEcessary? maybe not
+        #self.replay # if you wanted
+        self.seed = torch.randn(batch_size, z_size).to(device)
+        self.loss_totals_g = []
+        self.loss_totals_d = []
+        self.score_g = []
+        self.score_d = []
+        self.optim_g = torch.optim.Adam(self.generator.parameters(), lr = learning_rate_g,
+                                   weight_decay=w_g, betas= (beta1_g, beta2_g))
+        self.optim_d = torch.optim.Adam(self.discriminator.parameters(), lr=learning_rate_d,
+                                   weight_decay=w_d, betas= (beta1_d, beta2_d))
+
+    def forward(self, input):
+        return self.generator(input)
+
+    def loss(self, score, truth):
+        score = score.to(device)
+        truth = truth.to(device)
+        # truth = y, score = y_hat
+        return self.criterion(score, truth) # takes mean reduction
+
+    # def batches_loop(self):
+    def batches_loop(self):
+        optim_g = self.optim_g
+        optim_d = self.optim_d
+        batch_count = 0
+        loss_total_g = 0
+        loss_total_d = 0
+        # count_correct = 0
+        for x, y in fmnist_loader:
+            batch_count += 1
+            # data_rinse
+            x = x.squeeze() # move data treatment to data funciton
+            x = x.reshape(batch_size,xout_size)
+            x = x.to(device)
+            y = torch.tensor(SANKETNET.hot_helper(y.tolist())[0])
+            y = y.to(device)
+            x = torch.cat((x, y), axis=-1)
+            # The sampling of ze (shape z-size by something)
+            z = torch.randn(batch_size, z_size)  # rand latent
+            z = z.to(device)
+            # discriminator forward w/ fake
+            d_g = self.discriminator(self.generator(z).detach())
+            y_dg = torch.zeros(batch_size, 1)
+            y_dg = y_dg.to(device)
+            loss_dg = self.loss(d_g, y_dg)
+
+            # discriminator forward w/ real
+            d_x = self.discriminator(x)
+            y_dx = torch.ones(batch_size,1)
+            y_dx = y_dx.to(device)
+            # d = d_g + d_x
+
+            # discriminator loss, backward, step
+            loss_dx = self.loss(d_x, y_dx)
+            loss_dt = loss_dx + loss_dg
+            loss_total_d += loss_dt.item()
+            optim_d.zero_grad()
+            loss_dt.backward()
+            torch.nn.utils.clip_grad_norm_(self.discriminator.parameters(), c_d)
+            optim_d.step()
+            # Feeding of z into generator. for some reason don't need to seed this...what would
+            # happend if we did?
+            # generator's output is already normalized, goes into the discriminator forward
+            # discriminator's output goes into loss fn, along with a vector of 1's
+            # clear the gradient
+            # loss fn backprops all the way back to generator, store loss
+
+            if batch_count % rd == 0:
+                for i in range(rg):
+                #generator forward
+                    z = torch.randn(batch_size, z_size)  # rand latent
+                    z = z.to(device)
+                    g = self.generator(z)
+                    y_g = self.discriminator(g) # fake score
+                    y_gt = torch.ones(batch_size, 1) # target
+                    y_gt = y_gt.to(device)
+                    y_g = y_g.to(device)
+
+                    # generator loss, backward, step
+                    loss_g = self.loss(y_g, y_gt)
+                    optim_g.zero_grad()
+                    loss_total_g += loss_g.item()
+                    loss_g.backward()
+                    torch.nn.utils.clip_grad_norm_(self.generator.parameters(), c_g)
+                    optim_g.step()
+                    # steps the generators weights ....
+
+            if batch_count % 200 == 0:
+                print(batch_count, f'batches complete, loss_g: {loss_total_g}, loss_d: {loss_total_d}')
+
+        for i, each in enumerate(self.generator.parameters()):
+            print('generator weight norms', torch.norm(each)) if i % 2 == 0 else None
+        for i, each in enumerate(self.discriminator.parameters()):
+            print('discriminator weight norms', torch.norm(each)) if i % 2 == 0 else None
+        # self.peak(z, name='train')
+        self.loss_totals_g.append(loss_total_g)
+        self.loss_totals_d.append(loss_total_d)
+        self.score_g.append(d_g.detach().mean().item())
+        self.score_d.append(d_x.detach().mean().item())
+        return
+
+
+    def train_gan(self):
+        count_epoch = 0
+        for epoch in range(epochs):
+            count_epoch += 1
+            print('EPOCH:', count_epoch)
+            self.batches_loop()
+            self.peak(self.seed, name='ss')
+
+        save_bin(f'gan', self)
+
+    def peak(self, z, name = 'x'):
+        inv_normalize = transforms.Normalize(
+            mean=[-0.1307 / 0.3081],
+            std=[1 / 0.3081]
+        )
+        g = self.generator(z)
+        g = g.reshape(batch_size, 1, 28, 28)
+        g = inv_normalize(g)
+        tiles = self.tile_and_print(g, 8, 8)
+        tiles = tiles.permute(1, 2, 0)
+        tiles = tiles.cpu().detach().numpy()
+        tiles = tiles.squeeze()
+        plt.figure(figsize=(80, 40))
+        plt.imshow(tiles, interpolation='bilinear', cmap='gray')
+        plt.savefig(f'./plots/peak_{name}_{int(time.time())}.png')
+        plt.close() # shows up as green?
+
+    def tile_and_print(self,input, tiles_height, tiles_width, padding=1): # taken from asgn2
+        """
+        expecting a 4d weight tensor. (chan_out, chan_in, h, w). permute for matplot plot.
+        This function uses permute to compose the filter map....
+        """
+        device = input.device
+        p = padding
+        w = input
+        assert len(w.shape) == 4, w.shape
+        co, ci, he, wi = w.shape
+        assert he * wi == xout_size
+        if padding:
+            w = torch.cat((w, torch.ones((co, ci, p, wi), device=device)), dim=-2)
+            w = torch.cat((w, torch.ones((co, ci, he + p, p), device=device)), dim=-1)
+            co, ci, he, wi = w.shape
+        w = w.permute(1, 2, 3, 0)
+        w = w.reshape(ci, he, wi, tiles_height, tiles_width)
+        w = w.permute(0, 3, 1, 4, 2)
+        w = w.reshape(ci, he * tiles_height, tiles_width * wi)
+        return w
+
 def problem2(loss):
     gan = GAN(loss)
     gan.train_gan()
@@ -1424,10 +1587,20 @@ def problem3_histo():
         p = g(z)
         y = f(p).argmax().item()
         li.append(y)
-    return li
+    class Shell():
+        def __init__(self):
+            self.histogram = li
+    return Shell()
 
 def problem4(loss):
     gan = GAN_unrolled(loss)
+    gan.train_gan()
+    plot_loss(gan)
+    plot_scores(gan)
+    return gan
+
+def problem5(loss):
+    gan = GAN_conditional(loss)
     gan.train_gan()
     plot_loss(gan)
     plot_scores(gan)
@@ -1457,7 +1630,7 @@ def plot_scores(net):
         y1,
         y2,
         ind_label='epochs',
-        dep_label='loss',
+        dep_label='scores',
         title=f'Vanilla Gan Scores {int(time.time())}')
 
 def plot_histogram(net):
@@ -1497,56 +1670,3 @@ loss_2d = LeaseSquareLoss
 #  after 'convergence'
 
 # todo plot loss curces.
-# hook class
-# def fmap_hook(module, input, output):
-#     num_channels = output.shape[1]
-#     assert num_channels > 5, print(output.shape)
-#     num_channels = list(range(num_channels))
-#     inds = [random.choice(num_channels) for _ in range(5)]
-#     ft_maps_to_add = [output[0, i, ...] for i in inds]
-#     assert len(ft_maps_to_add[0].shape) == 2
-#     ft_maps_to_add = [transforms.ToPILImage()(o) for o in ft_maps_to_add]
-#     # shape 1,c,h,w
-#     # should output 5
-#     for i in ft_maps_to_add:
-#         ft_maps.append(i)
-#     return
-
-
-#
-# for p in pepper_net.named_modules():
-#     mod = p[1]
-#     if p[0] in layers:
-#         mod.register_forward_hook(fmap_hook)
-#
-# for i, each in enumerate(m.discriminator.parameters()):
-#
-# torch.norm
-# # torch.cltorch.norm(each)) if i % 2 == 0 else None
-#
-#
-# def gradient_clipper(model: nn.Module, val: float) -> nn.Module:
-#     for parameter in model.parameters():
-#         parameter.register_hook(lambda grad: grad.clamp_(-val, val))
-#
-#     return model
-# torch.cli
-#
-# if clip_coef < 1:
-#     for p in parameters:
-#         p.grad.detach().mul_(clip_coef.to(p.grad.device))
-# return total_norm
-#
-# torch.clamp()
-#
-# c_w = .1
-# for p, each in enumerate(m.generator.parameters()):
-#     if p % 2 == 0:
-#
-#         w_norm = torch.norm(each, p=1)
-#         clip_coef = c_w / w_norm + 1e-6
-#         m = c_w / each.size
-#         if clip_coef < 1:
-#             torch.clamp(m.generator.parameters()[p], m)
-#
-
