@@ -827,7 +827,7 @@ class GAN_Wass(nn.Module):
                 y_g = y_g.to(device)
 
                 # generator loss, backward, step
-                loss_g = self.loss(0, y_g)
+                loss_g = self.loss(0, y_g, d = False)
                 optim_g.zero_grad()
                 loss_total_g += loss_g.item()
                 loss_g.backward()
@@ -852,7 +852,7 @@ class GAN_Wass(nn.Module):
                 # d = d_g + d_x
 
                 # discriminator loss, backward, step
-                loss_dx = self.loss(d_x, d_g )
+                loss_dx = self.loss(d_x, d_g, d = True)
                 loss_dt = loss_dx # +loss_dg
                 loss_total_d += loss_dt.item()
                 optim_d.zero_grad()
@@ -989,7 +989,7 @@ class GAN_lsq(nn.Module):
             y_g = y_g.to(device)
 
             # generator loss, backward, step
-            loss_g = self.loss(y_g,0)
+            loss_g = self.loss(0,y_g, d = False)
             optim_g.zero_grad()
             loss_total_g += loss_g.item()
             loss_g.backward()
@@ -1013,7 +1013,7 @@ class GAN_lsq(nn.Module):
             # d = d_g + d_x
 
             # discriminator loss, backward, step
-            loss_dx = self.loss(d_x, d_g)
+            loss_dx = self.loss(d_x, d_g, d = True)
             loss_dt = loss_dx  # +loss_dg
             loss_total_d += loss_dt.item()
             optim_d.zero_grad()
@@ -1259,13 +1259,21 @@ def plot_histogram(net):
         dep_label='class',
         title=f'Class Distribution {int(time.time())}')
 
-def WassLoss(d_x, d_gx):
-    return (-(d_x + d_gx)).mean()
+def WassLoss(d_x, d_gx, d = True):
+    if d:
+        l = (d_gx - d_x).mean()
+    else:
+        l = (-d_gx).mean()
+    return l
 # print(c)
 
-def LeaseSquareLoss(d_x, d_gx):
+def LeaseSquareLoss(d_x, d_gz, d = True):
     # note that it's switched for generator..
-    return ((d_x - 1)**2 + d_gx**2).mean()
+    if d:
+        l = ( ((d_x - 1)**2 + d_gz)**2 ).mean()
+    else:
+        l = ((d_gz - 1)**2).mean()
+    return l
 
 loss_2a = nn.BCELoss()
 loss_2b = nn.MSELoss()
