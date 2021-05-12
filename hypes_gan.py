@@ -30,7 +30,7 @@ learning_rate_d = .0011
 w_d = 0
 beta1_d = .5
 beta2_d = .9
-c_d = 1 # clamp value for gradient norm
+c_d = 2 # clamp value for gradient norm
 c_w = .1 # clamp value for weights (absolute)
 # c_w = [0.1, 0.01, 0.001, 0.0001]
 # Add the gradients from the all-real and all-fake batches

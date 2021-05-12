@@ -1278,6 +1278,7 @@ class GAN_unrolled(nn.Module):
                     _x = _x.reshape(batch_size, xout_size)
                     _x = _x.to(device)
                     unrolled_discriminator = type(self.discriminator)(xout_size, hs_d1,hs_d2, hs_d3)  # get a new instance
+                    unrolled_discriminator = unrolled_discriminator.to(device)
                     unrolled_discriminator.load_state_dict(
                         self.discriminator.state_dict())  # copy weights and stuff
                     z = torch.randn(batch_size, z_size)  # rand latent
