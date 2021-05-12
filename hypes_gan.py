@@ -21,8 +21,9 @@ beta2_g = .9 # adam optim
 c_g = 1 # clamp value for gradients
 
 
-rg = 1 # number repitions
-rd = 1
+rg = 1 # number repitions generator
+rd = 1 # number of repitions discriminator
+rolls = 3 # number of unrolls for unrolled gan
 
 # optim params discriminator
 learning_rate_d = .0011
@@ -33,3 +34,24 @@ c_d = 1 # clamp value for gradient norm
 c_w = .1 # clamp value for weights (absolute)
 # c_w = [0.1, 0.01, 0.001, 0.0001]
 # Add the gradients from the all-real and all-fake batches
+
+
+
+# UNrolled GAN (look ahead)
+
+# for datum
+
+    # train D
+    #   real
+    #   fake
+    #   step d
+
+    # for k:
+        # copy d ( every loop)
+        #   real
+        #   fake
+        #   step d copy
+
+    # train g
+    # forward feed through copy d
+    # step g
