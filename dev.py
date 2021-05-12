@@ -984,6 +984,30 @@ class GAN_lsq(nn.Module):
             z = torch.randn(batch_size, z_size)  # rand latent
             z = z.to(device)
 
+            d_g = self.discriminator(self.generator(z).detach())
+            # y_dg = torch.zeros(batch_size, 1)
+            # y_dg = y_dg.to(device)
+            # loss_dg = self.loss(d_g, y_dg)
+            # loss_total_d += loss_dg.item()
+            # loss_dg.backward()
+
+            # discriminator forward w/ real
+            d_x = self.discriminator(x)
+            # y_dx = torch.ones(batch_size,1)
+            # y_dx = y_dx.to(device)
+            # d = d_g + d_x
+
+            # discriminator loss, backward, step
+            loss_dx = self.loss(d_x, d_g, d=True)
+            loss_dt = loss_dx  # +loss_dg
+            loss_total_d += loss_dt.item()
+            optim_d.zero_grad()
+            loss_dt.backward()
+            torch.nn.utils.clip_grad_norm_(self.discriminator.parameters(), c_d)
+            optim_d.step()
+
+            z = torch.randn(batch_size, z_size)  # rand latent
+            z = z.to(device)
             # generator forward
             g = self.generator(z)
             y_g = self.discriminator(g)  # fake score
@@ -1002,27 +1026,7 @@ class GAN_lsq(nn.Module):
             # steps the generators weights ....
 
             # discriminator forward w/ fake
-            d_g = self.discriminator(g.detach())
-            # y_dg = torch.zeros(batch_size, 1)
-            # y_dg = y_dg.to(device)
-            # loss_dg = self.loss(d_g, y_dg)
-            # loss_total_d += loss_dg.item()
-            # loss_dg.backward()
 
-            # discriminator forward w/ real
-            d_x = self.discriminator(x)
-            # y_dx = torch.ones(batch_size,1)
-            # y_dx = y_dx.to(device)
-            # d = d_g + d_x
-
-            # discriminator loss, backward, step
-            loss_dx = self.loss(d_x, d_g, d = True)
-            loss_dt = loss_dx  # +loss_dg
-            loss_total_d += loss_dt.item()
-            optim_d.zero_grad()
-            loss_dt.backward()
-            torch.nn.utils.clip_grad_norm_(self.discriminator.parameters(), c_d)
-            optim_d.step()
 
             if batch_count % 200 == 0:
                 print(batch_count,
@@ -1225,6 +1229,7 @@ class GAN_unrolled(nn.Module):
         loss_total_g = 0
         loss_total_d = 0
         # count_correct = 0
+        length = len(fmnist_loader)
         fmnist_iter = iter(fmnist_loader)
         for x, _ in fmnist_iter:
             batch_count += 1
@@ -1260,9 +1265,14 @@ class GAN_unrolled(nn.Module):
             # q would it matter if the gen code was first? essentially if during the discrim loop, that the
             #  gen inpput has to ba new input from same space, or prior one...
             if batch_count % rd == 0:
-                assert rolls >0, 'unrolled gan needs rolls'
+                assert rolls > 0, 'unrolled gan needs rolls'
+                # while batch_count < length - rolls:
                 for k in range(rolls):
                     batch_count += 1
+                    try:
+                        _x, _ = next(fmnist_iter)
+                    except StopIteration:
+                        "Iteration Finished, breaking"
                     _x, _ = next(fmnist_iter)
                     _x = _x.squeeze()  # move data treatment to data funciton
                     _x = _x.reshape(batch_size, xout_size)
