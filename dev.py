@@ -1429,9 +1429,10 @@ class GAN_conditional(nn.Module):
             x = x.squeeze() # move data treatment to data funciton
             x = x.reshape(batch_size,xout_size)
             x = x.to(device)
-            y = torch.tensor(SANKETNET.hot_helper(y.tolist())[0])
+            y = torch.tensor(SANKETNET.hot_helper(y.tolist(), labels_override=10)[0])
             y = y.to(device)
             x = torch.cat((x, y), axis=-1)
+            # print(x.shape)
             # The sampling of ze (shape z-size by something)
             z = torch.randn(batch_size, z_size)  # rand latent
             z = z.to(device)
