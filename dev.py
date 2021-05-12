@@ -526,7 +526,7 @@ class GAN(nn.Module):
             # discriminator's output goes into loss fn, along with a vector of 1's
             # clear the gradient
             # loss fn backprops all the way back to generator, store loss
-            for i in range(r):
+            for i in range(rg):
                 #generator forward
                 g = self.generator(z)
                 y_g = self.discriminator(g) # fake score
@@ -543,32 +543,33 @@ class GAN(nn.Module):
                 optim_g.step()
                 # steps the generators weights ....
 
-            # discriminator forward w/ fake
-            d_g = self.discriminator(g.detach())
-            y_dg = torch.zeros(batch_size, 1)
-            y_dg = y_dg.to(device)
-            loss_dg = self.loss(d_g, y_dg)
-            # loss_total_d += loss_dg.item()
-            # loss_dg.backward()
+            for i in range(rd):
+                # discriminator forward w/ fake
+                d_g = self.discriminator(g.detach())
+                y_dg = torch.zeros(batch_size, 1)
+                y_dg = y_dg.to(device)
+                loss_dg = self.loss(d_g, y_dg)
+                # loss_total_d += loss_dg.item()
+                # loss_dg.backward()
 
-            # discriminator takes the same output and feeds forward on it's network (again) (for
-            # gradient purposes) can potentially detach here....try detach first and then
-            # without...in interest of time...
+                # discriminator takes the same output and feeds forward on it's network (again) (for
+                # gradient purposes) can potentially detach here....try detach first and then
+                # without...in interest of time...
 
-            # discriminator forward w/ real
-            d_x = self.discriminator(x)
-            y_dx = torch.ones(batch_size,1)
-            y_dx = y_dx.to(device)
-            # d = d_g + d_x
+                # discriminator forward w/ real
+                d_x = self.discriminator(x)
+                y_dx = torch.ones(batch_size,1)
+                y_dx = y_dx.to(device)
+                # d = d_g + d_x
 
-            # discriminator loss, backward, step
-            loss_dx = self.loss(d_x, y_dx )
-            loss_dt = loss_dx + loss_dg
-            loss_total_d += loss_dt.item()
-            optim_d.zero_grad()
-            loss_dt.backward()
-            torch.nn.utils.clip_grad_norm_(self.discriminator.parameters(), c_d)
-            optim_d.step()
+                # discriminator loss, backward, step
+                loss_dx = self.loss(d_x, y_dx )
+                loss_dt = loss_dx + loss_dg
+                loss_total_d += loss_dt.item()
+                optim_d.zero_grad()
+                loss_dt.backward()
+                torch.nn.utils.clip_grad_norm_(self.discriminator.parameters(), c_d)
+                optim_d.step()
 
             if batch_count % 200 == 0:
                 print(batch_count, f'batches complete, loss_g: {loss_total_g}, loss_d: {loss_total_d}')
@@ -815,7 +816,7 @@ class GAN_Wass(nn.Module):
             z = torch.randn(batch_size, z_size) # rand latent
             z = z.to(device)
 
-            for i in range(r):
+            for i in range(rg):
                 #generator forward
                 g = self.generator(z)
                 y_g = self.discriminator(g) # fake score
@@ -833,28 +834,29 @@ class GAN_Wass(nn.Module):
 
                 # steps the generators weights ....
 
-            # discriminator forward w/ fake
-            d_g = self.discriminator(g.detach())
-            # y_dg = torch.zeros(batch_size, 1)
-            # y_dg = y_dg.to(device)
-            # loss_dg = self.loss(d_g, y_dg)
-            # loss_total_d += loss_dg.item()
-            # loss_dg.backward()
+            for i in range(rd):
+                # discriminator forward w/ fake
+                d_g = self.discriminator(g.detach())
+                # y_dg = torch.zeros(batch_size, 1)
+                # y_dg = y_dg.to(device)
+                # loss_dg = self.loss(d_g, y_dg)
+                # loss_total_d += loss_dg.item()
+                # loss_dg.backward()
 
-            # discriminator forward w/ real
-            d_x = self.discriminator(x)
-            # y_dx = torch.ones(batch_size,1)
-            # y_dx = y_dx.to(device)
-            # d = d_g + d_x
+                # discriminator forward w/ real
+                d_x = self.discriminator(x)
+                # y_dx = torch.ones(batch_size,1)
+                # y_dx = y_dx.to(device)
+                # d = d_g + d_x
 
-            # discriminator loss, backward, step
-            loss_dx = self.loss(d_x, d_g )
-            loss_dt = loss_dx # +loss_dg
-            loss_total_d += loss_dt.item()
-            optim_d.zero_grad()
-            loss_dt.backward()
-            torch.nn.utils.clip_grad_norm_(self.discriminator.parameters(), c_d)
-            optim_d.step()
+                # discriminator loss, backward, step
+                loss_dx = self.loss(d_x, d_g )
+                loss_dt = loss_dx # +loss_dg
+                loss_total_d += loss_dt.item()
+                optim_d.zero_grad()
+                loss_dt.backward()
+                torch.nn.utils.clip_grad_norm_(self.discriminator.parameters(), c_d)
+                optim_d.step()
             for p, each in enumerate(self.discriminator.parameters()):
                 if p % 2 == 0:
                     with torch.no_grad():

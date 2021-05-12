@@ -19,7 +19,10 @@ w_g = 0 # weight decay l2
 beta1_g = .25 # adam optim
 beta2_g = .9 # adam optim
 c_g = 1 # clamp value for gradients
-r = 5 # number repitions
+
+
+rg = 1 # number repitions
+rd = 1
 
 # optim params discriminator
 learning_rate_d = .0011
