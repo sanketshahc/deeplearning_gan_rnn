@@ -356,6 +356,16 @@ fmnist_loader = torch.utils.data.DataLoader(
     shuffle=True,
     drop_last=True)
 
+fmnist_test = torchvision.datasets.FashionMNIST(
+    root="./",
+    transform=transform, download=True)
+
+fmnist_test_loader = torch.utils.data.DataLoader(
+    dataset=fmnist_test,
+    batch_size=batch_size,
+    shuffle=True,
+    drop_last=True)
+
 # generator module
 # 3 hidden linear layers with ReLU activation and Tanh output activation
 
@@ -405,6 +415,52 @@ class Discriminator(nn.Module):
     def peak_weights(self):
         for each in self.parameters():
             print()
+
+
+class Discriminator_Wass(nn.Module):
+    def __init__(self, input_size, hs1, hs2, hs3):
+        super(Discriminator_Wass, self).__init__()
+        self.lin1 = nn.Linear(input_size, hs1)
+        self.lin2 = nn.Linear(hs1, hs2)
+        self.lin3 = nn.Linear(hs2, hs3)
+        self.output = nn.Linear(hs3, 1)
+        self.a1 = nn.LeakyReLU(.2)  # CONSIDER LEAKY RELU
+        self.a2 = nn.Sigmoid()
+
+    def forward(self, x):
+        x = self.lin1(x)
+        x = self.a1(x)
+        x = self.lin2(x)
+        x = self.a1(x)
+        x = self.lin3(x)
+        x = self.a1(x)
+        x = self.output(x)
+        # x = self.a2(x)
+        return x  # real/fake score
+
+    def peak_weights(self):
+        for each in self.parameters():
+            print()
+
+class Discriminator_classifier(nn.Module):
+    def __init__(self, input_size, hs1, hs2, hs3):
+        super(Discriminator_classifier, self).__init__()
+        self.lin1 = nn.Linear(input_size, hs1)
+        self.lin2 = nn.Linear(hs1, hs2)
+        self.lin3 = nn.Linear(hs2, hs3)
+        self.output = nn.Linear(hs3, 10)
+        self.a1 = nn.LeakyReLU(.2)  # CONSIDER LEAKY RELU
+
+    def forward(self, x):
+        x = self.lin1(x)
+        x = self.a1(x)
+        x = self.lin2(x)
+        x = self.a1(x)
+        x = self.lin3(x)
+        x = self.a1(x)
+        x = self.output(x)
+        # x = self.a2(x)
+        return x  # real/fake score
 
 
 # discriminator modules
@@ -470,22 +526,22 @@ class GAN(nn.Module):
             # discriminator's output goes into loss fn, along with a vector of 1's
             # clear the gradient
             # loss fn backprops all the way back to generator, store loss
+            for i in range(r):
+                #generator forward
+                g = self.generator(z)
+                y_g = self.discriminator(g) # fake score
+                y_gt = torch.ones(batch_size, 1) # target
+                y_gt = y_gt.to(device)
+                y_g = y_g.to(device)
 
-            #generator forward
-            g = self.generator(z)
-            y_g = self.discriminator(g) # fake score
-            y_gt = torch.ones(batch_size, 1) # target
-            y_gt = y_gt.to(device)
-            y_g = y_g.to(device)
-
-            # generator loss, backward, step
-            loss_g = self.loss(y_g, y_gt)
-            optim_g.zero_grad()
-            loss_total_g += loss_g.item()
-            loss_g.backward()
-            torch.nn.utils.clip_grad_norm_(self.generator.parameters(), c_g)
-            optim_g.step()
-            # steps the generators weights ....
+                # generator loss, backward, step
+                loss_g = self.loss(y_g, y_gt)
+                optim_g.zero_grad()
+                loss_total_g += loss_g.item()
+                loss_g.backward()
+                torch.nn.utils.clip_grad_norm_(self.generator.parameters(), c_g)
+                optim_g.step()
+                # steps the generators weights ....
 
             # discriminator forward w/ fake
             d_g = self.discriminator(g.detach())
@@ -524,8 +580,8 @@ class GAN(nn.Module):
         # self.peak(z, name='train')
         self.loss_totals_g.append(loss_total_g)
         self.loss_totals_d.append(loss_total_d)
-        self.score_g.append(y_dg.detach().mean().item())
-        self.score_d.append(y_dx.detach().mean().item())
+        self.score_g.append(d_g.detach().mean().item())
+        self.score_d.append(d_x.detach().mean().item())
         return
         # takes a sample from the data-space (input) via data loader, and feeds it forward through
         # the discriminator
@@ -708,10 +764,10 @@ class GAN_MSE(nn.Module):
 # overall network system module....will have training funcitons embedded, like sanketnet.
 class GAN_Wass(nn.Module):
     def __init__(self, criterion):
-        super(GAN, self).__init__()
+        super(GAN_Wass, self).__init__()
         # Components
         self.generator = Adversary(z_size, hs_g1,hs_g2, hs_g3, xout_size)
-        self.discriminator = Discriminator(xout_size, hs_d1,hs_d2, hs_d3)
+        self.discriminator = Discriminator_Wass(xout_size, hs_d1,hs_d2, hs_d3)
         self.criterion = criterion
         self.to(device)
         self.train() # NEcessary? maybe not
@@ -731,6 +787,10 @@ class GAN_Wass(nn.Module):
         return self.generator(input)
 
     def loss(self, score, truth):
+        if isinstance(score, int) or isinstance(score, float):
+            score = torch.tensor(score)
+        if isinstance(truth, int) or isinstance(truth, float):
+            truth = torch.tensor(truth)
         score = score.to(device)
         truth = truth.to(device)
         # truth = y, score = y_hat
@@ -755,21 +815,23 @@ class GAN_Wass(nn.Module):
             z = torch.randn(batch_size, z_size) # rand latent
             z = z.to(device)
 
-            #generator forward
-            g = self.generator(z)
-            y_g = self.discriminator(g) # fake score
-            # y_gt = torch.ones(batch_size, 1) # target
-            # y_gt = y_gt.to(device)
-            y_g = y_g.to(device)
+            for i in range(r):
+                #generator forward
+                g = self.generator(z)
+                y_g = self.discriminator(g) # fake score
+                # y_gt = torch.ones(batch_size, 1) # target
+                # y_gt = y_gt.to(device)
+                y_g = y_g.to(device)
 
-            # generator loss, backward, step
-            loss_g = self.loss(0, y_g)
-            optim_g.zero_grad()
-            loss_total_g += loss_g.item()
-            loss_g.backward()
-            torch.nn.utils.clip_grad_norm_(self.generator.parameters(), c_g)
-            optim_g.step()
-            # steps the generators weights ....
+                # generator loss, backward, step
+                loss_g = self.loss(0, y_g)
+                optim_g.zero_grad()
+                loss_total_g += loss_g.item()
+                loss_g.backward()
+                torch.nn.utils.clip_grad_norm_(self.generator.parameters(), c_g)
+                optim_g.step()
+
+                # steps the generators weights ....
 
             # discriminator forward w/ fake
             d_g = self.discriminator(g.detach())
@@ -793,6 +855,11 @@ class GAN_Wass(nn.Module):
             loss_dt.backward()
             torch.nn.utils.clip_grad_norm_(self.discriminator.parameters(), c_d)
             optim_d.step()
+            for p, each in enumerate(self.discriminator.parameters()):
+                if p % 2 == 0:
+                    with torch.no_grad():
+                        torch.clamp_(each, -c_w, c_w)
+
 
             if batch_count % 200 == 0:
                 print(batch_count, f'batches complete, loss_g: {loss_total_g}, loss_d: {loss_total_d}')
@@ -804,8 +871,8 @@ class GAN_Wass(nn.Module):
         # self.peak(z, name='train')
         self.loss_totals_g.append(loss_total_g)
         self.loss_totals_d.append(loss_total_d)
-        self.score_g.append(y_dg.detach().mean().item())
-        self.score_d.append(y_dx.detach().mean().item())
+        self.score_g.append(d_g.detach().mean().item())
+        self.score_d.append(d_x.detach().mean().item())
         return
 
     def train_gan(self):
@@ -859,7 +926,7 @@ class GAN_Wass(nn.Module):
 
 class GAN_lsq(nn.Module):
     def __init__(self, criterion):
-        super(GAN, self).__init__()
+        super(GAN_lsq, self).__init__()
         # Components
         self.generator = Adversary(z_size, hs_g1, hs_g2, hs_g3, xout_size)
         self.discriminator = Discriminator(xout_size, hs_d1, hs_d2, hs_d3)
@@ -882,6 +949,10 @@ class GAN_lsq(nn.Module):
         return self.generator(input)
 
     def loss(self, score, truth):
+        if isinstance(score, int) or isinstance(score, float):
+            score = torch.tensor(score)
+        if isinstance(truth, int) or isinstance(truth, float):
+            truth = torch.tensor(truth)
         score = score.to(device)
         truth = truth.to(device)
         # truth = y, score = y_hat
@@ -914,12 +985,13 @@ class GAN_lsq(nn.Module):
             y_g = y_g.to(device)
 
             # generator loss, backward, step
-            loss_g = self.loss(0, y_g)
+            loss_g = self.loss(y_g,0)
             optim_g.zero_grad()
             loss_total_g += loss_g.item()
             loss_g.backward()
             torch.nn.utils.clip_grad_norm_(self.generator.parameters(), c_g)
             optim_g.step()
+
             # steps the generators weights ....
 
             # discriminator forward w/ fake
@@ -956,8 +1028,8 @@ class GAN_lsq(nn.Module):
         # self.peak(z, name='train')
         self.loss_totals_g.append(loss_total_g)
         self.loss_totals_d.append(loss_total_d)
-        self.score_g.append(y_dg.detach().mean().item())
-        self.score_d.append(y_dx.detach().mean().item())
+        self.score_g.append(d_g.detach().mean().item())
+        self.score_d.append(d_x.detach().mean().item())
         return
 
     def train_gan(self):
@@ -1009,6 +1081,101 @@ class GAN_lsq(nn.Module):
         return w
 
 
+class FMnist_classifier(nn.Module):
+    def __init__(self):
+        super(FMnist_classifier, self).__init__()
+        # Components
+        self.discriminator = Discriminator_classifier(xout_size, hs_d1,hs_d2, hs_d3)
+        self.criterion = nn.CrossEntropyLoss()
+        self.to(device)
+        self.loss_totals = []
+        self.loss_totals_test = []
+        self.accuracy = []
+        self.accuracy_test = []
+        self.histogram = []
+        self.optimizer = torch.optim.Adam(self.discriminator.parameters(), lr=learning_rate_d)
+                                   # weight_decay=w_d, betas= (beta1_d, beta2_d))
+
+    def forward(self, input):
+        return self.discriminator(input)
+
+    def loss(self, y_hat, y):
+        # if isinstance(score, int) or isinstance(score, float):
+        #     score = torch.tensor(score)
+        # if isinstance(truth, int) or isinstance(truth, float):
+        #     truth = torch.tensor(truth)
+        y_hat = y_hat.to(device)
+        y = y.to(device)
+        # truth = y, score = y_hat
+        return self.criterion(y_hat, y) # takes mean reduction
+
+
+    def batches_loop(self, loader, is_val=False):
+        model = self.forward
+        optimizer = self.optimizer
+        criterion = self.criterion
+        batch_count = 0
+        loss_total = 0
+        count_correct = 0
+        for x, y in loader:
+            batch_count += 1
+            x = x.squeeze() # move data treatment to data funciton
+            x = x.reshape(batch_size,xout_size)
+            x = x.to(device)
+            y = y.to(device)
+            # assert x.shape[0] == hypes["BATCH"], x.shape
+            if is_val:
+                with torch.no_grad():
+                    y_hat = model(x)
+                    loss = criterion(y_hat, y)
+                    loss_total += loss.item()
+            else:
+                optimizer.zero_grad()
+                y_hat = model(x)
+                loss = criterion(y_hat, y)
+                loss_total += loss.item()
+                loss.backward()
+                optimizer.step()
+            if batch_count % 200 == 0:
+                print(batch_count,f'batches complete')
+
+        # evaluate, record
+            y_hat_arg = y_hat.argmax(dim=-1)
+            self.histogram += y_hat_arg.tolist()
+            # print(1, y_hat_arg)
+            # print(2 ,y)
+            # print(3, count_correct)
+            # print(4, (y == y_hat_arg).sum())
+            count_correct += (y == y_hat_arg).sum()
+            # print(5, count_correct, (batch_count * batch_size))
+
+        accuracy = (count_correct / (batch_count * batch_size))
+        if is_val:
+            self.loss_totals_test.append(loss_total)
+            self.accuracy_test.append(accuracy)
+        else:
+            self.loss_totals.append(loss_total)
+            self.accuracy.append(accuracy)
+        print(f'EPOCH complete, loss: {loss_total}, accuracy: {accuracy}')
+        return
+
+    def train_classifier(self):
+        network = self.discriminator
+        count_epoch = 0
+        for epoch in range(epochs):
+            count_epoch += 1
+            print('EPOCH:', count_epoch)
+            network.train()
+            print('Training...')
+            self.batches_loop(fmnist_loader)
+            network.eval()
+            print('Validating...')
+            self.batches_loop(fmnist_test_loader, is_val= True)
+        metrics = (self.loss_totals, self.loss_totals_test, self.accuracy,self.accuracy_test)
+        save_bin(f'class', network)
+        save_bin(f'class_metrics', metrics)
+
+
 def problem2(loss):
     gan = GAN(loss)
     gan.train_gan()
@@ -1023,6 +1190,35 @@ def problem2b(loss):
     # plot_scores(gan)
     return gan
 
+def problem2c(loss):
+    gan = GAN_Wass(loss)
+    gan.train_gan()
+    plot_loss(gan)
+    plot_scores(gan)
+    return gan
+
+def problem2d(loss):
+    gan = GAN_lsq(loss)
+    gan.train_gan()
+    plot_loss(gan)
+    plot_scores(gan)
+    return gan
+
+def problem3_train():
+    nn = FMnist_classifier()
+    nn.train_classifier()
+    return nn
+
+def problem3_histo():
+    gan = GAN()
+    li = []
+    f = torch.load('./Resources/p3/class_1620793876.pt')
+    for i in range(3000):
+        z = torch.randn(1, z_size)
+        p = gan(z)
+        y = f(p).argmax().item()
+        li.append(y)
+
 
 def plot_loss(net):
     x = range(epochs)
@@ -1034,7 +1230,9 @@ def plot_loss(net):
         y2,
         ind_label='epochs',
         dep_label='loss',
-        title=f'Vanilla Gan Loss {int(time.time())}')
+        title=f'Vanilla Gan Loss {int(time.time())}',
+        yscale='log'
+    )
 
 
 def plot_scores(net):
@@ -1049,16 +1247,20 @@ def plot_scores(net):
         dep_label='loss',
         title=f'Vanilla Gan Scores {int(time.time())}')
 
-def test():
-    plot_scores(nn.Module)
+def plot_histogram(net):
+    SANKETNET.Plot.histogram(
+        (net.histogram, [i for i in range(10)], 'classes'),
+        ind_label='count',
+        dep_label='class',
+        title=f'Class Distribution {int(time.time())}')
 
 def WassLoss(d_x, d_gx):
-    return -(d_x + d_gx)
+    return (-(d_x + d_gx)).mean()
 # print(c)
 
 def LeaseSquareLoss(d_x, d_gx):
     # note that it's switched for generator..
-    return (d_x - 1)**2 + d_gx**2
+    return ((d_x - 1)**2 + d_gx**2).mean()
 
 loss_2a = nn.BCELoss()
 loss_2b = nn.MSELoss()
@@ -1074,3 +1276,56 @@ loss_2d = LeaseSquareLoss
 #  after 'convergence'
 
 # todo plot loss curces.
+# hook class
+# def fmap_hook(module, input, output):
+#     num_channels = output.shape[1]
+#     assert num_channels > 5, print(output.shape)
+#     num_channels = list(range(num_channels))
+#     inds = [random.choice(num_channels) for _ in range(5)]
+#     ft_maps_to_add = [output[0, i, ...] for i in inds]
+#     assert len(ft_maps_to_add[0].shape) == 2
+#     ft_maps_to_add = [transforms.ToPILImage()(o) for o in ft_maps_to_add]
+#     # shape 1,c,h,w
+#     # should output 5
+#     for i in ft_maps_to_add:
+#         ft_maps.append(i)
+#     return
+
+
+#
+# for p in pepper_net.named_modules():
+#     mod = p[1]
+#     if p[0] in layers:
+#         mod.register_forward_hook(fmap_hook)
+#
+# for i, each in enumerate(m.discriminator.parameters()):
+#
+# torch.norm
+# # torch.cltorch.norm(each)) if i % 2 == 0 else None
+#
+#
+# def gradient_clipper(model: nn.Module, val: float) -> nn.Module:
+#     for parameter in model.parameters():
+#         parameter.register_hook(lambda grad: grad.clamp_(-val, val))
+#
+#     return model
+# torch.cli
+#
+# if clip_coef < 1:
+#     for p in parameters:
+#         p.grad.detach().mul_(clip_coef.to(p.grad.device))
+# return total_norm
+#
+# torch.clamp()
+#
+# c_w = .1
+# for p, each in enumerate(m.generator.parameters()):
+#     if p % 2 == 0:
+#
+#         w_norm = torch.norm(each, p=1)
+#         clip_coef = c_w / w_norm + 1e-6
+#         m = c_w / each.size
+#         if clip_coef < 1:
+#             torch.clamp(m.generator.parameters()[p], m)
+#
+
