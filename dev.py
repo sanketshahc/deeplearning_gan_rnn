@@ -517,8 +517,7 @@ class GAN(nn.Module):
             x = x.reshape(batch_size,xout_size)
             x = x.to(device)
             # The sampling of ze (shape z-size by something)
-            z = torch.randn(batch_size, z_size) # rand latent
-            z = z.to(device)
+
 
             # Feeding of z into generator. for some reason don't need to seed this...what would
             # happend if we did?
@@ -528,6 +527,8 @@ class GAN(nn.Module):
             # loss fn backprops all the way back to generator, store loss
             for i in range(rg):
                 #generator forward
+                z = torch.randn(batch_size, z_size)  # rand latent
+                z = z.to(device)
                 g = self.generator(z)
                 y_g = self.discriminator(g) # fake score
                 y_gt = torch.ones(batch_size, 1) # target
@@ -813,10 +814,11 @@ class GAN_Wass(nn.Module):
             x = x.reshape(batch_size,xout_size)
             x = x.to(device)
             # The sampling of ze (shape z-size by something)
-            z = torch.randn(batch_size, z_size) # rand latent
-            z = z.to(device)
 
             for i in range(rg):
+                z = torch.randn(batch_size, z_size)  # rand latent
+                z = z.to(device)
+
                 #generator forward
                 g = self.generator(z)
                 y_g = self.discriminator(g) # fake score
@@ -833,7 +835,7 @@ class GAN_Wass(nn.Module):
                 optim_g.step()
 
                 # steps the generators weights ....
-
+# Q is it supposed to sample newly each time?
             for i in range(rd):
                 # discriminator forward w/ fake
                 d_g = self.discriminator(g.detach())
@@ -859,8 +861,8 @@ class GAN_Wass(nn.Module):
                 optim_d.step()
             for p, each in enumerate(self.discriminator.parameters()):
                 if p % 2 == 0:
-                    with torch.no_grad():
-                        torch.clamp_(each, -c_w, c_w)
+                    # with torch.no_grad():
+                    each.data.clamp_( -c_w, c_w)
 
 
             if batch_count % 200 == 0:
@@ -1212,14 +1214,15 @@ def problem3_train():
     return nn
 
 def problem3_histo():
-    gan = GAN()
     li = []
     f = torch.load('./Resources/p3/class_1620793876.pt')
+    g = torch.load('./Resources/p2/gan_1620801902.pt', map_location='cpu')
     for i in range(3000):
         z = torch.randn(1, z_size)
-        p = gan(z)
+        p = g(z)
         y = f(p).argmax().item()
         li.append(y)
+    return li
 
 
 def plot_loss(net):
