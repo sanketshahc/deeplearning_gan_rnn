@@ -952,7 +952,7 @@ class GAN_lsq(nn.Module):
     def forward(self, input):
         return self.generator(input)
 
-    def loss(self, score, truth):
+    def loss(self, score, truth, d):
         if isinstance(score, int) or isinstance(score, float):
             score = torch.tensor(score)
         if isinstance(truth, int) or isinstance(truth, float):
@@ -960,7 +960,7 @@ class GAN_lsq(nn.Module):
         score = score.to(device)
         truth = truth.to(device)
         # truth = y, score = y_hat
-        return self.criterion(score, truth)  # takes mean reduction
+        return self.criterion(score, truth, d)  # takes mean reduction
 
     # def batches_loop(self):
     def batches_loop(self):
