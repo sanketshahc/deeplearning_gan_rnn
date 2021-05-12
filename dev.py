@@ -1273,7 +1273,7 @@ class GAN_unrolled(nn.Module):
                         _x, _ = next(fmnist_iter)
                     except StopIteration:
                         "Iteration Finished, breaking"
-                    _x, _ = next(fmnist_iter)
+                        break
                     _x = _x.squeeze()  # move data treatment to data funciton
                     _x = _x.reshape(batch_size, xout_size)
                     _x = _x.to(device)
@@ -1299,6 +1299,7 @@ class GAN_unrolled(nn.Module):
                     loss_ut.backward()
                     torch.nn.utils.clip_grad_norm_(unrolled_discriminator.parameters(), c_d)
                     optim_d.step()
+
                 for i in range(rg):
                 #generator forward
                     z = torch.randn(batch_size, z_size)  # rand latent
