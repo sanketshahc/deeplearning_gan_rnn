@@ -788,7 +788,7 @@ class GAN_Wass(nn.Module):
     def forward(self, input):
         return self.generator(input)
 
-    def loss(self, score, truth):
+    def loss(self, score, truth, d):
         if isinstance(score, int) or isinstance(score, float):
             score = torch.tensor(score)
         if isinstance(truth, int) or isinstance(truth, float):
@@ -796,7 +796,7 @@ class GAN_Wass(nn.Module):
         score = score.to(device)
         truth = truth.to(device)
         # truth = y, score = y_hat
-        return self.criterion(score, truth) # takes mean reduction
+        return self.criterion(score, truth, d) # takes mean reduction
 
     # def batches_loop(self):
     def batches_loop(self):
@@ -1103,7 +1103,7 @@ class FMnist_classifier(nn.Module):
     def forward(self, input):
         return self.discriminator(input)
 
-    def loss(self, y_hat, y):
+    def loss(self, y_hat, y, d):
         # if isinstance(score, int) or isinstance(score, float):
         #     score = torch.tensor(score)
         # if isinstance(truth, int) or isinstance(truth, float):
@@ -1111,7 +1111,7 @@ class FMnist_classifier(nn.Module):
         y_hat = y_hat.to(device)
         y = y.to(device)
         # truth = y, score = y_hat
-        return self.criterion(y_hat, y) # takes mean reduction
+        return self.criterion(y_hat, y, d) # takes mean reduction
 
 
     def batches_loop(self, loader, is_val=False):
