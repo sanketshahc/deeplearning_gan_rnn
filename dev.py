@@ -1398,7 +1398,7 @@ class GAN_conditional(nn.Module):
         #self.replay # if you wanted
         x = [ 0 for i in range(10)]
         x[3] = 1
-        self.seed = torch.cat(torch.randn(batch_size, z_size),x).to(device)
+        self.seed = torch.cat((torch.randn(batch_size, z_size),x)).to(device)
         self.loss_totals_g = []
         self.loss_totals_d = []
         self.score_g = []
