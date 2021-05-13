@@ -1397,7 +1397,7 @@ class GAN_conditional(nn.Module):
         self.train() # NEcessary? maybe not
         #self.replay # if you wanted
         _y = SANKETNET.hot_helper(np.random.rand(batch_size) // .10292, labels_override=10)[0]
-        self.seed = torch.cat((torch.randn(batch_size, z_size),_y)).to(device)
+        self.seed = torch.cat((torch.randn(batch_size, z_size),torch.tensor(_y))).to(device)
         self.loss_totals_g = []
         self.loss_totals_d = []
         self.score_g = []
