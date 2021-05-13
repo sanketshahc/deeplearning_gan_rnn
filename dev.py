@@ -1390,7 +1390,7 @@ class GAN_conditional(nn.Module):
     def __init__(self, criterion):
         super(GAN_conditional, self).__init__()
         #COmponents
-        self.generator = Adversary(z_size, hs_g1, hs_g2, hs_g3, xout_size + 10)
+        self.generator = Adversary(z_size + 10, hs_g1, hs_g2, hs_g3, xout_size)
         self.discriminator = Discriminator(xout_size + 10, hs_d1,hs_d2, hs_d3)
         self.criterion = criterion
         self.to(device)
@@ -1437,14 +1437,18 @@ class GAN_conditional(nn.Module):
             z = torch.randn(batch_size, z_size)  # rand latent
             z = z.to(device)
             # discriminator forward w/ fake
-            d_g = self.discriminator(self.generator(z).detach())
+            z = torch.cat((z, y), axis=-1)
+
+            g = torch.cat((self.generator(z),y), axis = -1)
+
+            d_g = self.discriminator(g.detach())
             y_dg = torch.zeros(batch_size, 1)
             y_dg = y_dg.to(device)
             loss_dg = self.loss(d_g, y_dg)
 
             # discriminator forward w/ real
             d_x = self.discriminator(x)
-            y_dx = torch.ones(batch_size,1)
+            y_dx = torch.ones(batch_size, 1)
             y_dx = y_dx.to(device)
             # d = d_g + d_x
 
@@ -1468,7 +1472,10 @@ class GAN_conditional(nn.Module):
                 #generator forward
                     z = torch.randn(batch_size, z_size)  # rand latent
                     z = z.to(device)
-                    g = self.generator(z)
+                    z = torch.cat((z, y), axis=-1)
+
+                    g = torch.cat((self.generator(z),y), axis = -1)
+
                     y_g = self.discriminator(g) # fake score
                     y_gt = torch.ones(batch_size, 1) # target
                     y_gt = y_gt.to(device)
