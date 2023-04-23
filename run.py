@@ -8,4 +8,12 @@ if __name__ == "__main__":
     # problem3_train()
     # problem4(loss_2a)
     problem5(loss_2a)
-# training loop code...π
+
+
+# PROBLEM 1 MAIN FUNCTIONS (UNCOMMENT)
+# vocabulary = vocabulary_builder(strip_split(paths[1]))
+# train_loader, test_loader, voc_size, input_size = data_prep()
+# grurnnet = GRURnnet(voc_size, embed_size, input_size, hidden_size)
+# # mlp_net = MLP_net(input_size, voc_size)
+# # mlp = problem_1(mlp_net, train_loader, test_loader)
+# rnn = problem_1(grurnnet, train_loader, test_loader)

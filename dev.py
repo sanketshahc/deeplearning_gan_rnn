@@ -110,7 +110,7 @@ paths = {
 
 
 # Make Network class module
-# nn.embedding is a class table object thing with methods. like a wrapper on a tensor
+# nn.py.embedding is a class table object thing with methods. like a wrapper on a tensor
 class GRURnnet(nn.Module):
     def __init__(self, voc_size, embed_size, seq_len, hidden_size):  # input size = seq size
         super(GRURnnet,self).__init__()
@@ -1558,6 +1558,33 @@ class GAN_conditional(nn.Module):
         w = w.reshape(ci, he * tiles_height, tiles_width * wi)
         return w
 
+    def visualize(self):
+        batch_size = 30
+        inv_normalize = transforms.Normalize(
+            mean=[-0.1307 / 0.3081],
+            std=[1 / 0.3081]
+        )
+        li = []
+        for i in [[i] * 3 for i in range(10)]:
+            li += i
+        _y = SANKETNET.hot_helper(
+            li, labels_override=10)[0]
+        _x = torch.cat(
+            (torch.randn(batch_size, 200), torch.tensor(_y)), axis=-1
+        ).to(device)
+        cGAN = torch.load('./Resources/p5/gan_1620868521.pt', map_location='cpu')
+        g = cGAN(_x)
+        g = g.reshape(batch_size, 1, 28, 28)
+        g = inv_normalize(g)
+        tiles = self.tile_and_print(g, 10, 3)
+        tiles = tiles.permute(1, 2, 0)
+        tiles = tiles.cpu().detach().numpy()
+        tiles = tiles.squeeze()
+        plt.figure(figsize=(20, 60))
+        plt.imshow(tiles, interpolation='bilinear', cmap='gray')
+        plt.savefig(f'./plots/cGAN_{int(time.time())}.png')
+        plt.close()  # shows up as green?
+
 def problem2(loss):
     gan = GAN(loss)
     gan.train_gan()
@@ -1683,3 +1710,4 @@ loss_2d = LeaseSquareLoss
 #  after 'convergence'
 
 # todo plot loss curces.
+

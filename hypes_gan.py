@@ -34,3 +34,14 @@ c_d = 1000 # clamp value for gradient norm
 c_w = .001 # clamp value for weights (absolute)
 # c_w = [0.1, 0.01, 0.001, 0.0001]
 # Add the gradients from the all-real and all-fake batches
+
+
+#### PROB 1
+
+
+# batch_size = 64
+# hidden_size = 64
+# embed_size = 32
+# learning_rate = .01
+# epochs = 30  # iterations
+# w = .003
